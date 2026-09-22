@@ -559,6 +559,21 @@ func (c *ListenBrainz) enrichTracks(tracks []*models.Track, singleArtist bool) (
 			slog.Debug("failed to enrich from MusicBrainz after retries", "mbid", track.MusicBrainzTrackID, "error", mbErr)
 		}
 
+		// Cover art fallback: if the playlist gave us no per-release image,
+		// use the album (release group) cover, then the specific release front.
+		coverURL := track.CoverURL
+		if coverURL == "" {
+			size := c.cfg.CoverArtSize
+			if size == "" {
+				size = "250"
+			}
+			if mbReleaseGroupID != "" {
+				coverURL = fmt.Sprintf("https://coverartarchive.org/release-group/%s/front-%s", mbReleaseGroupID, size)
+			} else if recording.Release.CaaReleaseMbid != "" {
+				coverURL = fmt.Sprintf("https://coverartarchive.org/release/%s/front-%s", recording.Release.CaaReleaseMbid, size)
+			}
+		}
+
 		tracks[i] = &models.Track{
 			ID:                        track.ID,
 			File:                      track.File,
@@ -579,7 +594,7 @@ func (c *ListenBrainz) enrichTracks(tracks []*models.Track, singleArtist bool) (
 			ReleaseType:               releaseType,
 			OriginalDate:              originalDate,
 			OriginalYear:              originalYear,
-			CoverURL:                  track.CoverURL,
+			CoverURL:                  coverURL,
 			Genres:                    strings.Join(genres, "; "),
 			ISRCs:                     append([]string(nil), rec.ISRCs...),
 			Media:                     media,

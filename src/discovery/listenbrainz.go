@@ -539,6 +539,21 @@ func (c *ListenBrainz) enrichTracks(tracks []*models.Track, singleArtist bool) (
 						mbReleaseTrackID = firstTrack.ID
 					}
 				}
+
+				// Fallback: ListenBrainz returned no first_release_date / release year,
+				// so use the release date from the MusicBrainz recording we already fetched.
+				if originalYear == 0 {
+					if bestRelease.Year != 0 {
+						originalYear = bestRelease.Year
+					} else if len(bestRelease.Date) >= 4 {
+						if y, err := strconv.Atoi(bestRelease.Date[:4]); err == nil {
+							originalYear = y
+						}
+					}
+				}
+				if originalDate == "" && bestRelease.Date != "" {
+					originalDate = bestRelease.Date
+				}
 			}
 		} else {
 			slog.Debug("failed to enrich from MusicBrainz after retries", "mbid", track.MusicBrainzTrackID, "error", mbErr)
